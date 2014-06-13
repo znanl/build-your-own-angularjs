@@ -692,16 +692,21 @@ Parser.prototype.consume = function(e) {
   }
 };
 
+function $ParseProvider() {
 
-function parse(expr) {
-  switch (typeof expr) {
-    case 'string':
-      var lexer = new Lexer();
-      var parser = new Parser(lexer);
-      return parser.parse(expr);
-    case 'function':
-      return expr;
-    default:
-      return _.noop;
-  }
+  this.$get = function() {
+    return function(expr) {
+      switch (typeof expr) {
+        case 'string':
+          var lexer = new Lexer();
+          var parser = new Parser(lexer);
+          return parser.parse(expr);
+        case 'function':
+          return expr;
+        default:
+          return _.noop;
+      }
+    };
+  };
+
 }
