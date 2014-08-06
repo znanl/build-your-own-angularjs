@@ -9,6 +9,10 @@ var OPERATORS = {
   'false': _.constant(false)
 };
 
+var CALL = Function.prototype.call;
+var APPLY = Function.prototype.apply;
+var BIND = Function.prototype.bind;
+
 var ensureSafeMemberName = function(name) {
   if (name === 'constructor' || name === '__proto__' ||
       name === '__defineGetter__' || name === '__defineSetter__' ||
@@ -27,6 +31,17 @@ var ensureSafeObject = function(obj) {
       throw 'Referencing Function in Angular expressions is disallowed!';
     } else if (obj.getOwnPropertyNames || obj.getOwnPropertyDescriptor) {
       throw 'Referencing Object in Angular expressions is disallowed!';
+    }
+  }
+  return obj;
+};
+
+var ensureSafeFunction = function(obj) {
+  if (obj) {
+    if (obj.constructor === obj) {
+      throw 'Referencing Function in Angular expressions is disallowed!';
+    } else if (obj === CALL || obj === APPLY || obj === BIND) {
+      throw 'Referencing call, apply, or bind in Angular expressions is disallowed!';
     }
   }
   return obj;
@@ -397,7 +412,7 @@ Parser.prototype.functionCall = function(fnFn, contextFn) {
   this.consume(')');
   return function(scope, locals) {
     var context = ensureSafeObject(contextFn ? contextFn(scope, locals) : scope);
-    var fn = ensureSafeObject(fnFn(scope, locals));
+    var fn = ensureSafeFunction(fnFn(scope, locals));
     var args = _.map(argFns, function(argFn) { return argFn(scope, locals); });
     return ensureSafeObject(fn.apply(context, args));
   };
