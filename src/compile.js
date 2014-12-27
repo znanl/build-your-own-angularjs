@@ -312,7 +312,7 @@ function $CompileProvider($provide) {
 
     function applyDirectivesToNode(directives, compileNode, attrs) {
       var $compileNode = $(compileNode);
-      var preLinkFns = [], postLinkFns = [];
+      var preLinkFns = [], postLinkFns = [], controllers = {};
       var newScopeDirective, newIsolateScopeDirective;
       var controllerDirectives;
 
@@ -370,10 +370,17 @@ function $CompileProvider($provide) {
       function nodeLinkFn(childLinkFn, scope, linkNode) {
         var $element = $(linkNode);
 
+        var isolateScope;
+        if (newIsolateScopeDirective) {
+          isolateScope = scope.$new(true);
+          $element.addClass('ng-isolate-scope');
+          $element.data('$isolateScope', isolateScope);
+        }
+
         if (controllerDirectives) {
           _.forEach(controllerDirectives, function(directive, directiveName) {
             var locals = {
-              $scope: scope,
+              $scope: directive === newIsolateScopeDirective ? isolateScope : scope,
               $element: $element,
               $attrs: attrs
             };
@@ -381,37 +388,37 @@ function $CompileProvider($provide) {
             if (controllerName === '@') {
               controllerName = attrs[directive.name];
             }
-            $controller(controllerName, locals, directive.controllerAs);
+            controllers[directive.name] =
+              $controller(controllerName, locals, true, directive.controllerAs);
           });
         }
 
-        var isolateScope;
         if (newIsolateScopeDirective) {
-          isolateScope = scope.$new(true);
-          $element.addClass('ng-isolate-scope');
-          $element.data('$isolateScope', isolateScope);
-
+          var isolateContext = isolateScope;
+          if (newIsolateScopeDirective.bindToController) {
+            isolateContext = controllers[newIsolateScopeDirective.name].instance;
+          }
           _.forEach(newIsolateScopeDirective.$$isolateBindings, function(definition, scopeName) {
             var attrName = definition.attrName;
             switch (definition.mode) {
               case '@':
                 attrs.$observe(attrName, function(newAttrValue) {
-                  isolateScope[scopeName] = newAttrValue;
+                  isolateContext[scopeName] = newAttrValue;
                 });
                 if (attrs[attrName]) {
-                  isolateScope[scopeName] = attrs[attrName];
+                  isolateContext[scopeName] = attrs[attrName];
                 }
                 break;
               case '=':
                 var parentGet = $parse(attrs[attrName]);
-                var lastValue = isolateScope[scopeName] = parentGet(scope);
+                var lastValue = isolateContext[scopeName] = parentGet(scope);
                 var parentValueWatch = function() {
                   var parentValue = parentGet(scope);
-                  if (isolateScope[scopeName] !== parentValue) {
+                  if (isolateContext[scopeName] !== parentValue) {
                     if (parentValue !== lastValue) {
-                      isolateScope[scopeName] = parentValue;
+                      isolateContext[scopeName] = parentValue;
                     } else {
-                      parentValue = isolateScope[scopeName];
+                      parentValue = isolateContext[scopeName];
                       parentGet.assign(scope, parentValue);
                     }
                   }
@@ -426,13 +433,17 @@ function $CompileProvider($provide) {
                 break;
               case '&':
                 var parentExpr = $parse(attrs[attrName]);
-                isolateScope[scopeName] = function(locals) {
+                isolateContext[scopeName] = function(locals) {
                   return parentExpr(scope, locals);
                 };
                 break;
             }
           });
         }
+
+        _.forEach(controllers, function(controller) {
+          controller();
+        });
 
         _.forEach(preLinkFns, function(linkFn) {
           linkFn(linkFn.isolateScope ? isolateScope : scope, $element, attrs);
