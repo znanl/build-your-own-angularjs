@@ -69,6 +69,7 @@ function $CompileProvider($provide) {
               directive.$$isolateBindings = parseIsolateBindings(directive.scope);
             }
             directive.name = directive.name || name;
+            directive.require = directive.require || (directive.controller && name);
             return directive;
           });
         }]);
