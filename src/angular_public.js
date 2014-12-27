@@ -9,4 +9,5 @@ function publishExternalAPI() {
   ngModule.provider('$q', $QProvider);
   ngModule.provider('$$q', $$QProvider);
   ngModule.provider('$compile', $CompileProvider);
+  ngModule.provider('$controller', $ControllerProvider);
 }
