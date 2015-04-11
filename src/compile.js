@@ -506,7 +506,11 @@ function $CompileProvider($provide) {
           );
         });
         if (childLinkFn) {
-          childLinkFn(scope, linkNode.childNodes);
+          var scopeToChild = scope;
+          if (newIsolateScopeDirective && newIsolateScopeDirective.template) {
+            scopeToChild = isolateScope;
+          }
+          childLinkFn(scopeToChild, linkNode.childNodes);
         }
         _.forEach(postLinkFns, function(linkFn) {
           linkFn(
